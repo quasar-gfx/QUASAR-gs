@@ -16,7 +16,7 @@
 #include <spdlog/spdlog.h>
 #include <glm/gtc/quaternion.hpp>
 
-#include <Eigen/Dense>
+#include <eigen3/Eigen/Dense>
 
 #ifdef TRACY_ENABLE
 #include <tracy/Tracy.hpp>

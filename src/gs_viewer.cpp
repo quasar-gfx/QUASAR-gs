@@ -1,16 +1,19 @@
-#include <filesystem>
 
 #include <args/args.hxx>
 #include <spdlog/spdlog.h>
 
 #include <OpenGLApp.h>
+#include <SceneLoader.h>
 #include <Windowing/GLFWWindow.h>
 #include <GUI/ImGuiManager.h>
+#include <GSRenderer.h>
 
 #include <PostProcessing/ToneMapper.h>
-#include <Cameras/PerspectiveCamera.h>
-#include <Cameras/VRCamera.h>
-#include <GSRenderer.h>
+
+#include <CameraAnimator.h>
+
+#include <VideoStreamer.h>
+#include <PoseReceiver.h>
 
 using namespace quasar;
 
@@ -35,7 +38,8 @@ static std::shared_ptr<GaussianCloud> LoadGaussianCloud(const std::string& plyFi
 
 int main(int argc, char** argv) {
     Config config{};
-    config.title = "GS Viewer";
+    config.title = "ATW Streamer";
+    config.targetFramerate = 30;
 
     args::ArgumentParser parser(config.title);
     args::HelpFlag help(parser, "help", "Display this help menu", {'h', "help"});
@@ -43,8 +47,12 @@ int main(int argc, char** argv) {
     args::ValueFlag<std::string> sizeIn(parser, "size", "Resolution of renderer", {'s', "size"}, "1920x1080");
     args::ValueFlag<std::string> plyFileIn(parser, "ply", "Path to ply", {'i', "ply"}, "./test.ply");
     args::Flag novsync(parser, "novsync", "Disable VSync", {'V', "novsync"}, false);
-    args::Flag importFullSH(parser, "importFullSH", "Import full SH data from PLY", {'f', "fullsh"}, true);
+    args::ValueFlag<bool> displayIn(parser, "display", "Show window", {'d', "display"}, true);
+    args::ValueFlag<std::string> videoURLIn(parser, "video", "Video URL", {'c', "video-url"}, "127.0.0.1:12345");
+    args::ValueFlag<std::string> poseURLIn(parser, "pose", "Pose URL", {'p', "pose-url"}, "0.0.0.0:54321");
+    args::ValueFlag<int> targetBitrateIn(parser, "targetBitrate", "Target bitrate (Mbps)", {'b', "target-bitrate"}, 50);
     args::ValueFlag<bool> vrModeIn(parser, "vr", "Enable VR mode", {'r', "vr"}, false);
+    args::Flag importFullSH(parser, "importFullSH", "Import full SH data from PLY", {'f', "fullsh"}, true);
     try {
         parser.ParseCLI(argc, argv);
     } catch (args::Help) {
@@ -60,7 +68,7 @@ int main(int argc, char** argv) {
         spdlog::set_level(spdlog::level::debug);
     }
 
-    // parse size
+    // Parse size
     std::string sizeStr = args::get(sizeIn);
     size_t pos = sizeStr.find('x');
     glm::uvec2 windowSize = glm::uvec2(std::stoi(sizeStr.substr(0, pos)), std::stoi(sizeStr.substr(pos + 1)));
@@ -68,7 +76,14 @@ int main(int argc, char** argv) {
     config.height = windowSize.y;
 
     config.enableVSync = !args::get(novsync);
-    config.showWindow = true;
+    config.showWindow = args::get(displayIn);
+
+    std::string plyFile = args::get(plyFileIn);
+    std::string videoURL = args::get(videoURLIn);
+    std::string poseURL = args::get(poseURLIn);
+
+    uint targetBitrate = args::get(targetBitrateIn);
+    bool vrMode = args::get(vrModeIn);
 
     auto window = std::make_shared<GLFWWindow>(config);
     auto guiManager = std::make_shared<ImGuiManager>(window);
@@ -79,17 +94,41 @@ int main(int argc, char** argv) {
     OpenGLApp app(config);
     GSRenderer renderer(config);
 
-    bool vrMode = args::get(vrModeIn);
-
     Scene scene;
-    PerspectiveCamera camera(windowSize.x, windowSize.y);
-    VRCamera vrCamera(windowSize.x, windowSize.y);
+    std::unique_ptr<Camera> camera;
+    SceneLoader loader;
+    if (vrMode) {
+        auto vrCamera = std::make_unique<VRCamera>(windowSize.x / 2, windowSize.y);
+        vrCamera->right.setViewMatrix(vrCamera->left.getViewMatrix());
+        vrCamera->right.setProjectionMatrix(vrCamera->left.getProjectionMatrix());
+        camera = std::move(vrCamera);
+    }
+    else {
+        auto perspectiveCamera = std::make_unique<PerspectiveCamera>(windowSize.x, windowSize.y);
+        camera = std::move(perspectiveCamera);
+    }
 
+    glm::vec3 initialPosition = camera->getPosition();
+
+    VideoStreamer videoStreamerRT = VideoStreamer({
+        .width = windowSize.x,
+        .height = windowSize.y,
+        .internalFormat = GL_SRGB8,
+        .format = GL_RGB,
+        .type = GL_UNSIGNED_BYTE,
+        .wrapS = GL_CLAMP_TO_EDGE,
+        .wrapT = GL_CLAMP_TO_EDGE,
+        .minFilter = GL_LINEAR,
+        .magFilter = GL_LINEAR,
+    }, videoURL, config.targetFramerate, targetBitrate);
+
+    PoseReceiver poseReceiver = PoseReceiver(camera.get(), poseURL);
+
+    // Post processing
     ToneMapper toneMapper;
     toneMapper.enableToneMapping(false); // making this false essentially just copies the framebuffer to the screen
 
     // Load the given ply file
-    std::string plyFile = args::get(plyFileIn);
     auto gaussianCloud = LoadGaussianCloud(plyFile, importFullSH);
     if (!gaussianCloud) {
         spdlog::error("Error loading GaussianCloud");
@@ -97,21 +136,16 @@ int main(int argc, char** argv) {
     }
     spdlog::info("Successfully loaded {}!", plyFile);
 
+    bool paused = false;
     RenderStats renderStats;
+    pose_id_t currentFramePoseID;
     guiManager->onRender([&](double now, double dt) {
         static bool showFPS = true;
         static bool showUI = true;
-        static bool showCaptureWindow = false;
-        static bool showRecordWindow = false;
-        static bool saveAsHDR = false;
-        static char fileNameBase[256] = "screenshot";
-        static int recordingFormatIndex = 0;
-        static const char* formats[] = { "MP4", "PNG", "JPG" };
-        static char recordingDirBase[256] = "recordings";
 
         ImGui::NewFrame();
 
-        unsigned int flags = 0;
+        uint flags = 0;
         ImGui::BeginMainMenuBar();
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Exit", "ESC")) {
@@ -141,14 +175,12 @@ int main(int argc, char** argv) {
             ImGui::Text("OpenGL Version: %s", glGetString(GL_VERSION));
             ImGui::Text("GPU: %s\n", glGetString(GL_RENDERER));
 
-            ImGui::Separator();
-
             if (renderStats.trianglesDrawn < 100000)
-                ImGui::TextColored(ImVec4(0,1,0,1), "Gaussians Drawn: %d", renderStats.trianglesDrawn);
+                ImGui::TextColored(ImVec4(0,1,0,1), "Triangles Drawn: %d", renderStats.trianglesDrawn);
             else if (renderStats.trianglesDrawn < 500000)
-                ImGui::TextColored(ImVec4(1,1,0,1), "Gaussians Drawn: %d", renderStats.trianglesDrawn);
+                ImGui::TextColored(ImVec4(1,1,0,1), "Triangles Drawn: %d", renderStats.trianglesDrawn);
             else
-                ImGui::TextColored(ImVec4(1,0,0,1), "Gaussians Drawn: %d", renderStats.trianglesDrawn);
+                ImGui::TextColored(ImVec4(1,0,0,1), "Triangles Drawn: %d", renderStats.trianglesDrawn);
 
             if (renderStats.drawCalls < 200)
                 ImGui::TextColored(ImVec4(0,1,0,1), "Draw Calls: %d", renderStats.drawCalls);
@@ -159,106 +191,122 @@ int main(int argc, char** argv) {
 
             ImGui::Separator();
 
-            glm::vec3 position = camera.getPosition();
-            if (ImGui::DragFloat3("Camera Position", (float*)&position, 0.01f)) {
-                camera.setPosition(position);
-            }
-            glm::vec3 rotation = camera.getRotationEuler();
-            if (ImGui::DragFloat3("Camera Rotation", (float*)&rotation, 0.1f)) {
-                camera.setRotationEuler(rotation);
-            }
-            ImGui::DragFloat("Movement Speed", &camera.movementSpeed, 0.05f, 0.1f, 20.0f);
+            glm::vec3 position = camera->getPosition();
+            glm::vec3 rotation = camera->getRotationEuler();
+            ImGui::BeginDisabled();
+            ImGui::DragFloat3("Camera Position", (float*)&position);
+            ImGui::DragFloat3("Camera Rotation", (float*)&rotation);
+            ImGui::EndDisabled();
 
             ImGui::Separator();
 
-            if (ImGui::CollapsingHeader("Background Settings")) {
-                if (ImGui::Button("Change Background Color", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
-                    ImGui::OpenPopup("Background Color Popup");
-                }
-                if (ImGui::BeginPopup("Background Color Popup")) {
-                    ImGui::ColorPicker3("Background Color", (float*)&scene.backgroundColor);
-                    ImGui::EndPopup();
-                }
-            }
+            ImGui::Text("Video URL: %s", videoURL.c_str());
+            ImGui::Text("Pose URL: %s", poseURL.c_str());
+
+            ImGui::Separator();
+
+            ImGui::TextColored(ImVec4(1,0.5,0,1), "Video Frame Rate: %.1f FPS (%.3f ms/frame)", videoStreamerRT.getFrameRate(), 1000.0f / videoStreamerRT.getFrameRate());
+
+            ImGui::Separator();
+
+            ImGui::TextColored(ImVec4(0,0.5,0,1), "Time to copy frame: %.3f ms", videoStreamerRT.stats.timeToCopyFrameMs);
+            ImGui::TextColored(ImVec4(0,0.5,0,1), "Time to encode frame: %.3f ms", videoStreamerRT.stats.timeToEncodeMs);
+            ImGui::TextColored(ImVec4(0,0.5,0,1), "Time to send frame: %.3f ms", videoStreamerRT.stats.timeToSendMs);
+            ImGui::TextColored(ImVec4(0,0.5,0,1), "Bitrate: %.3f Mbps", videoStreamerRT.stats.bitrateMbps);
+
+            ImGui::Separator();
+
+            ImGui::Text("Remote Pose ID: %d", currentFramePoseID);
+
+            ImGui::Separator();
+
+            ImGui::Checkbox("Pause", &paused);
 
             ImGui::End();
         }
     });
 
-    app.onResize([&](unsigned int width, unsigned int height) {
+    app.onResize([&](uint width, uint height) {
         windowSize = glm::uvec2(width, height);
         renderer.setWindowSize(windowSize.x, windowSize.y);
 
         if (vrMode) {
-            vrCamera.left.setAspect(windowSize.x / 2, windowSize.y);
-            vrCamera.right.setAspect(windowSize.x / 2, windowSize.y);
-            vrCamera.updateProjectionMatrix();
+            auto vrCamera = static_cast<VRCamera*>(camera.get());
+            vrCamera->left.setAspect(windowSize.x / 2, windowSize.y);
+            vrCamera->right.setAspect(windowSize.x / 2, windowSize.y);
+            vrCamera->updateProjectionMatrix();
         }
         else {
-            camera.setAspect(windowSize.x, windowSize.y);
-            camera.updateProjectionMatrix();
+            auto perspectiveCamera = static_cast<PerspectiveCamera*>(camera.get());
+            perspectiveCamera->setAspect(windowSize.x, windowSize.y);
+            perspectiveCamera->updateProjectionMatrix();
         }
     });
 
     app.onRender([&](double now, double dt) {
-        if (!(ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantCaptureMouse)) {
-            auto mouseButtons = window->getMouseButtons();
-            window->setMouseCursor(!mouseButtons.LEFT_PRESSED);
-            static bool dragging = false;
-            static bool prevMouseLeftPressed = false;
-            static float lastX = windowSize.x / 2.0;
-            static float lastY = windowSize.y / 2.0;
-            if (!prevMouseLeftPressed && mouseButtons.LEFT_PRESSED) {
-                dragging = true;
-                prevMouseLeftPressed = true;
-
-                auto cursorPos = window->getCursorPos();
-                lastX = static_cast<float>(cursorPos.x);
-                lastY = static_cast<float>(cursorPos.y);
-            }
-            if (prevMouseLeftPressed && !mouseButtons.LEFT_PRESSED) {
-                dragging = false;
-                prevMouseLeftPressed = false;
-            }
-            if (dragging) {
-                auto cursorPos = window->getCursorPos();
-                float xpos = static_cast<float>(cursorPos.x);
-                float ypos = static_cast<float>(cursorPos.y);
-
-                float xoffset = xpos - lastX;
-                float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
-
-                lastX = xpos;
-                lastY = ypos;
-
-                camera.processMouseMovement(xoffset, yoffset, true);
-            }
-        }
+        // Handle keyboard input
         auto keys = window->getKeys();
-        camera.processKeyboard(keys, dt);
         if (keys.ESC_PRESSED) {
             window->close();
         }
-        auto scroll = window->getScrollOffset();
-        camera.processScroll(scroll.y);
 
-        vrCamera.left.setViewMatrix(camera.getViewMatrix());
-        vrCamera.right.setViewMatrix(camera.getViewMatrix());
-
-        // Render the splats
-        if (!vrMode) {
-            renderStats = renderer.drawSplats(gaussianCloud, scene, camera);
-        }
-        else {
-            renderStats = renderer.drawSplats(gaussianCloud, scene, vrCamera);
+        if (paused) {
+            return;
         }
 
-        // Display result to screen
-        toneMapper.drawToScreen(renderer);
+        // Update all animations
+        scene.updateAnimations(dt);
+
+        // Receive pose
+        pose_id_t poseID = poseReceiver.receivePose();
+        if (poseID != -1) {
+            // Offset camera
+            if (camera->isVR()) {
+                auto* vrCamera = static_cast<VRCamera*>(camera.get());
+                vrCamera->left.setPosition(vrCamera->left.getPosition() + initialPosition);
+                vrCamera->right.setPosition(vrCamera->right.getPosition() + initialPosition);
+                vrCamera->left.updateViewMatrix();
+                vrCamera->right.updateViewMatrix();
+            }
+            else {
+                auto* perspectiveCamera = static_cast<PerspectiveCamera*>(camera.get());
+                perspectiveCamera->setPosition(perspectiveCamera->getPosition() + initialPosition);
+                perspectiveCamera->updateViewMatrix();
+            }
+
+            renderStats = renderer.drawSplats(gaussianCloud, scene, *camera);
+
+            // Restore camera position
+            if (camera->isVR()) {
+                auto* vrCamera = static_cast<VRCamera*>(camera.get());
+                vrCamera->left.setPosition(vrCamera->left.getPosition() - initialPosition);
+                vrCamera->right.setPosition(vrCamera->right.getPosition() - initialPosition);
+                vrCamera->left.updateViewMatrix();
+                vrCamera->right.updateViewMatrix();
+            }
+            else {
+                auto* perspectiveCamera = static_cast<PerspectiveCamera*>(camera.get());
+                perspectiveCamera->setPosition(perspectiveCamera->getPosition() - initialPosition);
+                perspectiveCamera->updateViewMatrix();
+            }
+
+            // Copy rendered result to video render target
+            toneMapper.drawToRenderTarget(renderer, videoStreamerRT);
+
+            // Send video frame
+            currentFramePoseID = poseID;
+            videoStreamerRT.sendFrame(poseID);
+        }
+
+        if (config.showWindow) {
+            toneMapper.drawToScreen(renderer);
+        }
     });
 
-    // run app loop (blocking)
+    // Run app loop (blocking)
     app.run();
+
+    spdlog::info("Please do CTRL-C to exit!");
 
     return 0;
 }
