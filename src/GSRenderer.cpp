@@ -39,37 +39,50 @@ RenderStats GSRenderer::drawSplats(std::shared_ptr<GaussianCloud> gaussianCloud,
     }
     splatRendererInitialized = true;
 
-    pipeline.apply();
     beginRendering();
 
     // Clear screen
     glClearColor(scene.backgroundColor.r, scene.backgroundColor.g, scene.backgroundColor.b, scene.backgroundColor.a);
     glClear(clearMask);
 
-    // Render the splats
+    glm::vec4 viewport;
     if (camera.isVR()) {
+        pipeline.rasterState.scissorTestEnabled = true;
+        pipeline.apply();
+
         auto* vrCamera = static_cast<const VRCamera*>(&camera);
 
-        pipeline.rasterState.scissorTestEnabled = true;
+        glm::mat4 cameraMat = vrCamera->left.getViewMatrixInverse();
+        glm::mat4 projMat = vrCamera->left.getProjectionMatrix();
+        glm::vec2 nearFar(vrCamera->left.getNear(), vrCamera->left.getFar());
 
         // Left eye
         frameRT.setViewport(0, 0, width / 2, height);
         frameRT.setScissor(0, 0, width / 2, height);
-        stats += drawSplats(gaussianCloud, scene, vrCamera->left, clearMask);
+        viewport = glm::vec4(0.0f, 0.0f, width / 2, height);
+        splatRenderer->Sort(cameraMat, projMat, viewport, nearFar);
+        splatRenderer->Render(cameraMat, projMat, viewport, nearFar);
 
         // Right eye
         frameRT.setViewport(width / 2, 0, width / 2, height);
         frameRT.setScissor(width / 2, 0, width / 2, height);
-        stats += drawSplats(gaussianCloud, scene, vrCamera->right, clearMask);
+        viewport = glm::vec4(width / 2, 0.0f, width / 2, height);
+        splatRenderer->Sort(cameraMat, projMat, viewport, nearFar);
+        splatRenderer->Render(cameraMat, projMat, viewport, nearFar);
+
+        frameRT.setViewport(0, 0, width, height);
+        frameRT.setScissor(0, 0, width, height);
     }
     else {
+        pipeline.apply();
+
         // Non-VR rendering
         frameRT.setViewport(0, 0, width, height);
 
         auto* perspectiveCamera = static_cast<const PerspectiveCamera*>(&camera);
         glm::mat4 cameraMat = perspectiveCamera->getViewMatrixInverse();
         glm::mat4 projMat = perspectiveCamera->getProjectionMatrix();
-        glm::vec4 viewport(0.0f, 0.0f, (float)width, (float)height);
+        viewport = glm::vec4(0.0f, 0.0f, width, height);
         glm::vec2 nearFar(perspectiveCamera->getNear(), perspectiveCamera->getFar());
 
         splatRenderer->Sort(cameraMat, projMat, viewport, nearFar);

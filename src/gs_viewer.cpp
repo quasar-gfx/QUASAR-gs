@@ -4,12 +4,12 @@
 #include <spdlog/spdlog.h>
 
 #include <OpenGLApp.h>
-#include <SceneLoader.h>
 #include <Windowing/GLFWWindow.h>
 #include <GUI/ImGuiManager.h>
 
 #include <PostProcessing/ToneMapper.h>
-
+#include <Cameras/PerspectiveCamera.h>
+#include <Cameras/VRCamera.h>
 #include <GSRenderer.h>
 
 using namespace quasar;
@@ -44,6 +44,7 @@ int main(int argc, char** argv) {
     args::ValueFlag<std::string> plyFileIn(parser, "ply", "Path to ply", {'i', "ply"}, "./test.ply");
     args::Flag novsync(parser, "novsync", "Disable VSync", {'V', "novsync"}, false);
     args::Flag importFullSH(parser, "importFullSH", "Import full SH data from PLY", {'f', "fullsh"}, true);
+    args::ValueFlag<bool> vrModeIn(parser, "vr", "Enable VR mode", {'r', "vr"}, false);
     try {
         parser.ParseCLI(argc, argv);
     } catch (args::Help) {
@@ -78,8 +79,11 @@ int main(int argc, char** argv) {
     OpenGLApp app(config);
     GSRenderer renderer(config);
 
+    bool vrMode = args::get(vrModeIn);
+
     Scene scene;
     PerspectiveCamera camera(windowSize.x, windowSize.y);
+    VRCamera vrCamera(windowSize.x, windowSize.y);
 
     ToneMapper toneMapper;
     toneMapper.enableToneMapping(false); // making this false essentially just copies the framebuffer to the screen
@@ -185,8 +189,15 @@ int main(int argc, char** argv) {
         windowSize = glm::uvec2(width, height);
         renderer.setWindowSize(windowSize.x, windowSize.y);
 
-        camera.setAspect(windowSize.x, windowSize.y);
-        camera.updateProjectionMatrix();
+        if (vrMode) {
+            vrCamera.left.setAspect(windowSize.x / 2, windowSize.y);
+            vrCamera.right.setAspect(windowSize.x / 2, windowSize.y);
+            vrCamera.updateProjectionMatrix();
+        }
+        else {
+            camera.setAspect(windowSize.x, windowSize.y);
+            camera.updateProjectionMatrix();
+        }
     });
 
     app.onRender([&](double now, double dt) {
@@ -231,8 +242,16 @@ int main(int argc, char** argv) {
         auto scroll = window->getScrollOffset();
         camera.processScroll(scroll.y);
 
+        vrCamera.left.setViewMatrix(camera.getViewMatrix());
+        vrCamera.right.setViewMatrix(camera.getViewMatrix());
+
         // Render the splats
-        renderStats = renderer.drawSplats(gaussianCloud, scene, camera);
+        if (!vrMode) {
+            renderStats = renderer.drawSplats(gaussianCloud, scene, camera);
+        }
+        else {
+            renderStats = renderer.drawSplats(gaussianCloud, scene, vrCamera);
+        }
 
         // Display result to screen
         toneMapper.drawToScreen(renderer);
