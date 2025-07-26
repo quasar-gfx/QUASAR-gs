@@ -38,7 +38,7 @@ static std::shared_ptr<GaussianCloud> LoadGaussianCloud(const std::string& plyFi
 
 int main(int argc, char** argv) {
     Config config{};
-    config.title = "ATW Streamer";
+    config.title = "GS ATW Streamer";
     config.targetFramerate = 30;
 
     args::ArgumentParser parser(config.title);
