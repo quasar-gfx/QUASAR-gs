@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-set(TARGET gs_viewer)
+set(TARGET QUASAR-gs)
 project(${TARGET})
 
 set(CMAKE_CXX_STANDARD 17)
@@ -15,20 +15,27 @@ add_subdirectory(${QUASAR_DIR})
 # QUASAR App Common
 add_subdirectory(${APP_COMMON_DIR})
 
-# app source files
+# App source files
 file(GLOB_RECURSE SRCS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
-add_executable(${TARGET} ${SRCS})
-target_include_directories(${TARGET}
-    PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${APP_COMMON_DIR}/include
-    ${APP_COMMON_SHADERS_DIR}/include
-)
-target_link_libraries(${TARGET} PRIVATE quasar quasar_common)
+# Create executable for each file in apps/
+file(GLOB_RECURSE APP_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/apps/*.cpp")
+foreach(APP_SRC ${APP_SRCS})
+    get_filename_component(APP_NAME ${APP_SRC} NAME)
+    string(REPLACE ".cpp" "" APP_NAME ${APP_NAME})
+    add_executable(${APP_NAME} ${APP_SRC} ${SRCS})
+
+    target_include_directories(${APP_NAME}
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${APP_COMMON_DIR}/include
+        ${APP_COMMON_SHADERS_DIR}/include
+    )
+    target_link_libraries(${APP_NAME} PRIVATE quasar quasar_common)
+endforeach()
 
 file(CREATE_LINK ${CMAKE_CURRENT_SOURCE_DIR}/shaders ${CMAKE_CURRENT_BINARY_DIR}/shaders_gs SYMBOLIC)
 
 file(CREATE_LINK ${QUASAR_DIR}/renderer/shaders ${CMAKE_CURRENT_BINARY_DIR}/shaders_builtin SYMBOLIC)
 file(CREATE_LINK ${QUASAR_DIR}/assets ${CMAKE_CURRENT_BINARY_DIR}/assets SYMBOLIC)
-file(CREATE_LINK ../test.ply ${CMAKE_CURRENT_BINARY_DIR}/test.ply SYMBOLIC)
+file(CREATE_LINK ${CMAKE_CURRENT_SOURCE_DIR}/test.ply ${CMAKE_CURRENT_BINARY_DIR}/test.ply SYMBOLIC)
