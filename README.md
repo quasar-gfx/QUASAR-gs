@@ -4,7 +4,7 @@ Uses the [QUASAR](https://github.com/quasar-gfx/QUASAR) rendering engine to rend
 
 ## Clone the Repository
 ```
-git clone --recursive git@github.com:EdwardLu2018/QUASAR-gs.git 
+git clone --recursive git@github.com:EdwardLu2018/QUASAR-gs.git
 ```
 
 If you accidentally cloned the repository without `--recursive`, you can do:
@@ -32,7 +32,7 @@ cmake ..; cmake --build . -j $(nproc)
 ### GS Streamer
 ```
 # in build/ folder
-./gs_viewer --size 1920x1080 <path to .ply file> --video-url <client IP address>:12345
+./gs_streamer --size 1920x1080 <path to .ply file> --video-url <client IP address>:12345
 ```
 
 ### ATW Receiver

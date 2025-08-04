@@ -1,5 +1,3 @@
-#include <filesystem>
-
 #include <args/args.hxx>
 #include <spdlog/spdlog.h>
 

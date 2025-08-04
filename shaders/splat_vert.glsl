@@ -156,13 +156,13 @@ void main(void)
     float alpha = position.w;
     vec4 t = viewMat * vec4(position.xyz, 1.0f);
 
-    //float X0 = viewport.x;
-    float X0 = viewport.x * (0.00001f * projParams.y);  // one weird hack to prevent projParams from being compiled away
+    float X0 = viewport.x;
     float Y0 = viewport.y;
     float WIDTH = viewport.z;
     float HEIGHT = viewport.w;
     float Z_NEAR = projParams.y;
     float Z_FAR = projParams.z;
+    float _keep_projParams = projParams.y;
 
     // J is the jacobian of the projection and viewport transformations.
     // this is an affine approximation of the real projection.

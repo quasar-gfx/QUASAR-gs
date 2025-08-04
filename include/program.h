@@ -41,10 +41,6 @@ public:
         {
             SetUniformRaw(iter->second.loc, value);
         }
-        else
-        {
-            spdlog::warn("Could not find uniform \"{}\" for program \"{}\"\n", name, debugName);
-        }
     }
 
     void SetUniformRaw(int loc, int32_t value) const;
