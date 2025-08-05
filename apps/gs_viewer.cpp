@@ -5,10 +5,8 @@
 #include <SceneLoader.h>
 #include <Windowing/GLFWWindow.h>
 #include <GUI/ImGuiManager.h>
-
-#include <PostProcessing/ToneMapper.h>
-
 #include <GSRenderer.h>
+#include <PostProcessing/ToneMapper.h>
 
 using namespace quasar;
 
@@ -77,7 +75,7 @@ int main(int argc, char** argv) {
     GSRenderer renderer(config);
 
     Scene scene;
-    PerspectiveCamera camera(windowSize.x, windowSize.y);
+    PerspectiveCamera camera(windowSize);
 
     ToneMapper toneMapper;
     toneMapper.enableToneMapping(false); // making this false essentially just copies the framebuffer to the screen
@@ -183,7 +181,7 @@ int main(int argc, char** argv) {
         windowSize = glm::uvec2(width, height);
         renderer.setWindowSize(windowSize.x, windowSize.y);
 
-        camera.setAspect(windowSize.x, windowSize.y);
+        camera.setAspect(windowSize);
         camera.updateProjectionMatrix();
     });
 
