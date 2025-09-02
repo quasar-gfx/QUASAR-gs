@@ -48,7 +48,7 @@ Only ATW is supported as the reprojection method for now.
 You can either run `atw_receiver` in the [QUASAR](https://github.com/quasar-gfx/QUASAR) repo (docs: https://quasar-gfx.github.io/QUASAR/#atw),
 or `ATWClient` in the [QUASAR-client](https://github.com/quasar-gfx/QUASAR-client) repo (docs: https://quasar-gfx.github.io/QUASAR/openxr.html#atw-client). 
 
-**NOTE: If you are running on a VR headset, please add `--vr` in the command line arguments for `gs_streamer` and set the size to match `videoSize` in the headset code.**
+**NOTE: If you are running on a VR headset, please add `--vr` in the command line arguments for `gs_streamer` and set `--size 3840x1080` (or whatever matches `videoSize` in the headset code).**
 
 Remember to set/change the IP addresses in the command line arguments and in the headset code!
 
