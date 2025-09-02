@@ -6,7 +6,7 @@
 #include <Windowing/GLFWWindow.h>
 #include <GUI/ImGuiManager.h>
 #include <GSRenderer.h>
-#include <PostProcessing/ToneMapper.h>
+#include <PostProcessing/Tonemapper.h>
 
 using namespace quasar;
 
@@ -77,8 +77,8 @@ int main(int argc, char** argv) {
     Scene scene;
     PerspectiveCamera camera(windowSize);
 
-    ToneMapper toneMapper;
-    toneMapper.enableToneMapping(false); // making this false essentially just copies the framebuffer to the screen
+    Tonemapper tonemapper;
+    tonemapper.enableTonemapping(false); // making this false essentially just copies the framebuffer to the screen
 
     // Load the given ply file
     std::string plyFile = args::get(plyFileIn);
@@ -231,7 +231,7 @@ int main(int argc, char** argv) {
         renderStats = renderer.drawSplats(gaussianCloud, scene, camera);
 
         // Display result to screen
-        toneMapper.drawToScreen(renderer);
+        tonemapper.drawToScreen(renderer);
     });
 
     // run app loop (blocking)

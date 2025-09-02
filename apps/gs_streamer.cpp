@@ -6,12 +6,12 @@
 #include <Windowing/GLFWWindow.h>
 #include <GUI/ImGuiManager.h>
 #include <GSRenderer.h>
-#include <PostProcessing/ToneMapper.h>
+#include <PostProcessing/Tonemapper.h>
 
 #include <CameraAnimator.h>
 
-#include <VideoStreamer.h>
-#include <PoseReceiver.h>
+#include <Streamers/VideoStreamer.h>
+#include <Receivers/PoseReceiver.h>
 
 using namespace quasar;
 
@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
     args::ValueFlag<bool> displayIn(parser, "display", "Show window", {'d', "display"}, true);
     args::ValueFlag<std::string> videoURLIn(parser, "video", "Video URL", {'c', "video-url"}, "127.0.0.1:12345");
     args::ValueFlag<std::string> poseURLIn(parser, "pose", "Pose URL", {'p', "pose-url"}, "0.0.0.0:54321");
-    args::ValueFlag<int> targetBitrateIn(parser, "targetBitrate", "Target bitrate (Mbps)", {'b', "target-bitrate"}, 50);
+    args::ValueFlag<int> targetBitrateIn(parser, "targetBitrate", "Target bitrate (Mbps)", {'b', "target-bitrate"}, 12);
     args::ValueFlag<bool> vrModeIn(parser, "vr", "Enable VR mode", {'r', "vr"}, false);
     args::Flag importFullSH(parser, "importFullSH", "Import full SH data from PLY", {'f', "fullsh"}, true);
     try {
@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
 
     glm::vec3 initialPosition = camera->getPosition();
 
-    VideoStreamer videoStreamerRT = VideoStreamer({
+    VideoStreamer videoStreamerRT({
         .width = windowSize.x,
         .height = windowSize.y,
         .internalFormat = GL_SRGB8,
@@ -119,11 +119,11 @@ int main(int argc, char** argv) {
         .magFilter = GL_LINEAR,
     }, videoURL, config.targetFramerate, targetBitrate);
 
-    PoseReceiver poseReceiver = PoseReceiver(camera.get(), poseURL);
+    PoseReceiver poseReceiver(camera.get(), poseURL);
 
     // Post processing
-    ToneMapper toneMapper;
-    toneMapper.enableToneMapping(false); // making this false essentially just copies the framebuffer to the screen
+    Tonemapper tonemapper;
+    tonemapper.enableTonemapping(false); // making this false essentially just copies the framebuffer to the screen
 
     // Load the given ply file
     auto gaussianCloud = LoadGaussianCloud(plyFile, importFullSH);
@@ -203,13 +203,9 @@ int main(int argc, char** argv) {
             ImGui::Separator();
 
             ImGui::TextColored(ImVec4(1,0.5,0,1), "Video Frame Rate: %.1f FPS (%.3f ms/frame)", videoStreamerRT.getFrameRate(), 1000.0f / videoStreamerRT.getFrameRate());
-
-            ImGui::Separator();
-
-            ImGui::TextColored(ImVec4(0,0.5,0,1), "Time to copy frame: %.3f ms", videoStreamerRT.stats.timeToTransferMs);
-            ImGui::TextColored(ImVec4(0,0.5,0,1), "Time to encode frame: %.3f ms", videoStreamerRT.stats.timeToEncodeMs);
-            ImGui::TextColored(ImVec4(0,0.5,0,1), "Time to send frame: %.3f ms", videoStreamerRT.stats.timeToSendMs);
-            ImGui::TextColored(ImVec4(0,0.5,0,1), "Bitrate: %.3f Mbps", videoStreamerRT.stats.bitrateMbps);
+            ImGui::TextColored(ImVec4(0,0.5,0,1), "Time to copy frame: %.3f ms", videoStreamerRT.stats.transferTimeMs);
+            ImGui::TextColored(ImVec4(0,0.5,0,1), "Time to encode frame: %.3f ms", videoStreamerRT.stats.encodeTimeMs);
+            ImGui::TextColored(ImVec4(0,0.5,0,1), "Time to send frame: %.3f ms", videoStreamerRT.stats.sendTimeMs);
 
             ImGui::Separator();
 
@@ -288,7 +284,7 @@ int main(int argc, char** argv) {
             }
 
             // Copy rendered result to video render target
-            toneMapper.drawToRenderTarget(renderer, videoStreamerRT);
+            tonemapper.drawToRenderTarget(renderer, videoStreamerRT);
 
             // Send video frame
             currentFramePoseID = poseID;
@@ -296,7 +292,7 @@ int main(int argc, char** argv) {
         }
 
         if (config.showWindow) {
-            toneMapper.drawToScreen(renderer);
+            tonemapper.drawToScreen(renderer);
         }
     });
 
