@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
     args::ValueFlag<std::string> videoURLIn(parser, "video", "Video URL", {'c', "video-url"}, "127.0.0.1:12345");
     args::ValueFlag<std::string> poseURLIn(parser, "pose", "Pose URL", {'p', "pose-url"}, "0.0.0.0:54321");
     args::ValueFlag<int> targetBitrateIn(parser, "targetBitrate", "Target bitrate (Mbps)", {'b', "target-bitrate"}, 12);
-    args::ValueFlag<bool> vrModeIn(parser, "vr", "Enable VR mode", {'r', "vr"}, false);
+    args::Flag vrModeIn(parser, "vr", "Enable VR mode", {'r', "vr"}, false);
     args::Flag importFullSH(parser, "importFullSH", "Import full SH data from PLY", {'f', "fullsh"}, true);
     try {
         parser.ParseCLI(argc, argv);
