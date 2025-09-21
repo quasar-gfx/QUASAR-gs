@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
     auto gaussianCloud = LoadGaussianCloud(plyFile, importFullSH);
     if (!gaussianCloud) {
         spdlog::error("Error loading GaussianCloud");
-        return false;
+        return -1;
     }
     spdlog::info("Successfully loaded {}!", plyFile);
 
