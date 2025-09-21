@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
     auto gaussianCloud = LoadGaussianCloud(plyFile, importFullSH);
     if (!gaussianCloud) {
         spdlog::error("Error loading GaussianCloud");
-        return false;
+        return -1;
     }
     spdlog::info("Successfully loaded {}!", plyFile);
 
@@ -100,8 +100,6 @@ int main(int argc, char** argv) {
         static int recordingFormatIndex = 0;
         static const char* formats[] = { "MP4", "PNG", "JPG" };
         static char recordingDirBase[256] = "recordings";
-
-        ImGui::NewFrame();
 
         unsigned int flags = 0;
         ImGui::BeginMainMenuBar();
@@ -136,18 +134,18 @@ int main(int argc, char** argv) {
             ImGui::Separator();
 
             if (renderStats.trianglesDrawn < 100000)
-                ImGui::TextColored(ImVec4(0,1,0,1), "Gaussians Drawn: %d", renderStats.trianglesDrawn);
+                ImGui::TextColored(ImVec4(0,1,0,1), "Gaussians Drawn: %ld", renderStats.trianglesDrawn);
             else if (renderStats.trianglesDrawn < 500000)
-                ImGui::TextColored(ImVec4(1,1,0,1), "Gaussians Drawn: %d", renderStats.trianglesDrawn);
+                ImGui::TextColored(ImVec4(1,1,0,1), "Gaussians Drawn: %ld", renderStats.trianglesDrawn);
             else
-                ImGui::TextColored(ImVec4(1,0,0,1), "Gaussians Drawn: %d", renderStats.trianglesDrawn);
+                ImGui::TextColored(ImVec4(1,0,0,1), "Gaussians Drawn: %ld", renderStats.trianglesDrawn);
 
             if (renderStats.drawCalls < 200)
-                ImGui::TextColored(ImVec4(0,1,0,1), "Draw Calls: %d", renderStats.drawCalls);
+                ImGui::TextColored(ImVec4(0,1,0,1), "Draw Calls: %ld", renderStats.drawCalls);
             else if (renderStats.drawCalls < 500)
-                ImGui::TextColored(ImVec4(1,1,0,1), "Draw Calls: %d", renderStats.drawCalls);
+                ImGui::TextColored(ImVec4(1,1,0,1), "Draw Calls: %ld", renderStats.drawCalls);
             else
-                ImGui::TextColored(ImVec4(1,0,0,1), "Draw Calls: %d", renderStats.drawCalls);
+                ImGui::TextColored(ImVec4(1,0,0,1), "Draw Calls: %ld", renderStats.drawCalls);
 
             ImGui::Separator();
 

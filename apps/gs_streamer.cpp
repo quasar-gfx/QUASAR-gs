@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
     args::ValueFlag<std::string> videoURLIn(parser, "video", "Video URL", {'c', "video-url"}, "127.0.0.1:12345");
     args::ValueFlag<std::string> poseURLIn(parser, "pose", "Pose URL", {'p', "pose-url"}, "0.0.0.0:54321");
     args::ValueFlag<int> targetBitrateIn(parser, "targetBitrate", "Target bitrate (Mbps)", {'b', "target-bitrate"}, 12);
-    args::ValueFlag<bool> vrModeIn(parser, "vr", "Enable VR mode", {'r', "vr"}, false);
+    args::Flag vrModeIn(parser, "vr", "Enable VR mode", {'r', "vr"}, false);
     args::Flag importFullSH(parser, "importFullSH", "Import full SH data from PLY", {'f', "fullsh"}, true);
     try {
         parser.ParseCLI(argc, argv);
@@ -129,7 +129,7 @@ int main(int argc, char** argv) {
     auto gaussianCloud = LoadGaussianCloud(plyFile, importFullSH);
     if (!gaussianCloud) {
         spdlog::error("Error loading GaussianCloud");
-        return false;
+        return -1;
     }
     spdlog::info("Successfully loaded {}!", plyFile);
 
@@ -139,8 +139,6 @@ int main(int argc, char** argv) {
     guiManager->onRender([&](double now, double dt) {
         static bool showFPS = true;
         static bool showUI = true;
-
-        ImGui::NewFrame();
 
         uint flags = 0;
         ImGui::BeginMainMenuBar();
@@ -173,18 +171,18 @@ int main(int argc, char** argv) {
             ImGui::Text("GPU: %s\n", glGetString(GL_RENDERER));
 
             if (renderStats.trianglesDrawn < 100000)
-                ImGui::TextColored(ImVec4(0,1,0,1), "Triangles Drawn: %d", renderStats.trianglesDrawn);
+                ImGui::TextColored(ImVec4(0,1,0,1), "Triangles Drawn: %ld", renderStats.trianglesDrawn);
             else if (renderStats.trianglesDrawn < 500000)
-                ImGui::TextColored(ImVec4(1,1,0,1), "Triangles Drawn: %d", renderStats.trianglesDrawn);
+                ImGui::TextColored(ImVec4(1,1,0,1), "Triangles Drawn: %ld", renderStats.trianglesDrawn);
             else
-                ImGui::TextColored(ImVec4(1,0,0,1), "Triangles Drawn: %d", renderStats.trianglesDrawn);
+                ImGui::TextColored(ImVec4(1,0,0,1), "Triangles Drawn: %ld", renderStats.trianglesDrawn);
 
             if (renderStats.drawCalls < 200)
-                ImGui::TextColored(ImVec4(0,1,0,1), "Draw Calls: %d", renderStats.drawCalls);
+                ImGui::TextColored(ImVec4(0,1,0,1), "Draw Calls: %ld", renderStats.drawCalls);
             else if (renderStats.drawCalls < 500)
-                ImGui::TextColored(ImVec4(1,1,0,1), "Draw Calls: %d", renderStats.drawCalls);
+                ImGui::TextColored(ImVec4(1,1,0,1), "Draw Calls: %ld", renderStats.drawCalls);
             else
-                ImGui::TextColored(ImVec4(1,0,0,1), "Draw Calls: %d", renderStats.drawCalls);
+                ImGui::TextColored(ImVec4(1,0,0,1), "Draw Calls: %ld", renderStats.drawCalls);
 
             ImGui::Separator();
 

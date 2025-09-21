@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.22)
 set(TARGET QUASAR-gs)
 project(${TARGET})
 
-set(CMAKE_CXX_STANDARD 17)
-
 set(QUASAR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/QUASAR)
 set(APP_COMMON_DIR ${QUASAR_DIR}/apps/Common)
 set(APP_COMMON_SHADERS_DIR ${APP_COMMON_DIR}/shaders)

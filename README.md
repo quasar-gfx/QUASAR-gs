@@ -31,7 +31,7 @@ cmake ..; cmake --build . -j $(nproc)
 
 ### 3DGS Viewer
 ```# in build/ folder
-./gs_viewer --size 1920x1080 <path to .ply file>
+./gs_viewer --size 1920x1080 --ply <path to .ply file>
 ```
 `test.ply` is provided in this repo as an example, but you may have to move back a little from the starting position to find it. 
 This codebase should be able to load the `.ply` models/scenes found in the [original 3DGS project](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/), as well as any other `.ply` files that follow the same format.
@@ -39,7 +39,7 @@ This codebase should be able to load the `.ply` models/scenes found in the [orig
 ### 3DGS Streamer
 ```
 # in build/ folder
-./gs_streamer --size 1920x1080 <path to .ply file> --video-url <client IP address>:12345 
+./gs_streamer --size 1920x1080 --ply <path to .ply file> --video-url <client IP address>:12345 
 ```
 
 ### 3DGS (ATW) Receiver
