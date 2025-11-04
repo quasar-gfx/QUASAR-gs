@@ -5,6 +5,9 @@
 #include <SceneLoader.h>
 #include <Windowing/GLFWWindow.h>
 #include <GUI/ImGuiManager.h>
+
+#include <UI/CameraHeader.h>
+
 #include <GSRenderer.h>
 #include <PostProcessing/Tonemapper.h>
 
@@ -90,6 +93,7 @@ int main(int argc, char** argv) {
     spdlog::info("Successfully loaded {}!", plyFile);
 
     RenderStats renderStats;
+    CameraHeader cameraHeader(camera);
     guiManager->onRender([&](double now, double dt) {
         static bool showFPS = true;
         static bool showUI = true;
@@ -149,17 +153,7 @@ int main(int argc, char** argv) {
 
             ImGui::Separator();
 
-            glm::vec3 position = camera.getPosition();
-            if (ImGui::DragFloat3("Camera Position", (float*)&position, 0.01f)) {
-                camera.setPosition(position);
-            }
-            glm::vec3 rotation = camera.getRotationEuler();
-            if (ImGui::DragFloat3("Camera Rotation", (float*)&rotation, 0.1f)) {
-                camera.setRotationEuler(rotation);
-            }
-            ImGui::DragFloat("Movement Speed", &camera.movementSpeed, 0.05f, 0.1f, 20.0f);
-
-            ImGui::Separator();
+            cameraHeader.draw(now, dt);
 
             if (ImGui::CollapsingHeader("Background Settings")) {
                 if (ImGui::Button("Change Background Color", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {

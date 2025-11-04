@@ -5,11 +5,11 @@
 #include <SceneLoader.h>
 #include <Windowing/GLFWWindow.h>
 #include <GUI/ImGuiManager.h>
+
+#include <UI/CameraHeader.h>
+
 #include <GSRenderer.h>
 #include <PostProcessing/Tonemapper.h>
-
-#include <CameraAnimator.h>
-
 #include <Streamers/VideoStreamer.h>
 #include <Receivers/PoseReceiver.h>
 
@@ -136,6 +136,7 @@ int main(int argc, char** argv) {
     bool paused = false;
     RenderStats renderStats;
     pose_id_t currentFramePoseID;
+    CameraHeader cameraHeader(*camera, "Remote Camera", true);
     guiManager->onRender([&](double now, double dt) {
         static bool showFPS = true;
         static bool showUI = true;
@@ -186,12 +187,7 @@ int main(int argc, char** argv) {
 
             ImGui::Separator();
 
-            glm::vec3 position = camera->getPosition();
-            glm::vec3 rotation = camera->getRotationEuler();
-            ImGui::BeginDisabled();
-            ImGui::DragFloat3("Camera Position", (float*)&position);
-            ImGui::DragFloat3("Camera Rotation", (float*)&rotation);
-            ImGui::EndDisabled();
+            cameraHeader.draw(now, dt);
 
             ImGui::Separator();
 
@@ -296,8 +292,6 @@ int main(int argc, char** argv) {
 
     // Run app loop (blocking)
     app.run();
-
-    spdlog::info("Please do CTRL-C to exit!");
 
     return 0;
 }

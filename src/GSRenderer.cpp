@@ -58,8 +58,8 @@ RenderStats GSRenderer::drawSplats(std::shared_ptr<GaussianCloud> gaussianCloud,
         glm::vec2 nearFar(vrCamera->left.getNear(), vrCamera->left.getFar());
 
         // Left eye
-        frameRT.setViewport(0, 0, width / 2, height);
-        frameRT.setScissor(0, 0, width / 2, height);
+        frameRT.setViewport({ 0, 0, width / 2, height });
+        frameRT.setScissor({ 0, 0, width / 2, height });
         viewport = glm::vec4(0.0f, 0.0f, width / 2, height);
         splatRenderer->Sort(cameraMat, projMat, viewport, nearFar);
         splatRenderer->Render(cameraMat, projMat, viewport, nearFar);
@@ -69,13 +69,13 @@ RenderStats GSRenderer::drawSplats(std::shared_ptr<GaussianCloud> gaussianCloud,
         projMat = vrCamera->right.getProjectionMatrix();
         viewport = glm::vec4(width / 2, 0.0f, width / 2, height);
 
-        frameRT.setViewport(width / 2, 0, width / 2, height);
-        frameRT.setScissor(width / 2, 0, width / 2, height);
+        frameRT.setViewport({ width / 2, 0, width / 2, height });
+        frameRT.setScissor({ width / 2, 0, width / 2, height });
         splatRenderer->Sort(cameraMat, projMat, viewport, nearFar);
         splatRenderer->Render(cameraMat, projMat, viewport, nearFar);
 
-        frameRT.setViewport(0, 0, width, height);
-        frameRT.setScissor(0, 0, width, height);
+        frameRT.setViewport({ 0, 0, width, height });
+        frameRT.setScissor({ 0, 0, width, height });
 
         stats.trianglesDrawn = static_cast<uint>(gaussianCloud->GetNumGaussians()) * 2;
         stats.drawCalls = 2;
@@ -84,7 +84,7 @@ RenderStats GSRenderer::drawSplats(std::shared_ptr<GaussianCloud> gaussianCloud,
         pipeline.apply();
 
         // Non-VR rendering
-        frameRT.setViewport(0, 0, width, height);
+        frameRT.setViewport({ 0, 0, width, height });
 
         auto* perspectiveCamera = static_cast<const PerspectiveCamera*>(&camera);
         cameraMat = perspectiveCamera->getViewMatrixInverse();
