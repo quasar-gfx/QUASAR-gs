@@ -154,6 +154,17 @@ int main(int argc, char** argv) {
 
             cameraHeader.draw(now, dt);
 
+            if (ImGui::CollapsingHeader("Model Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::DragFloat3("Position", &renderer.modelPosition[0], 0.01f);
+                ImGui::DragFloat3("Rotation", &renderer.modelRotationDeg[0], 1.0f, -360.0f, 360.0f);
+                ImGui::DragFloat3("Scale", &renderer.modelScale[0], 0.01f, 0.01f, 100.0f);
+                if (ImGui::Button("Reset Transform")) {
+                    renderer.modelPosition = glm::vec3(0.0f);
+                    renderer.modelRotationDeg = glm::vec3(180.0f, 0.0f, 0.0f);
+                    renderer.modelScale = glm::vec3(1.0f);
+                }
+            }
+
             if (ImGui::CollapsingHeader("Background Settings")) {
                 if (ImGui::Button("Change Background Color", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
                     ImGui::OpenPopup("Background Color Popup");

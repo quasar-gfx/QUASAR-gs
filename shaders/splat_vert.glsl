@@ -11,6 +11,7 @@
 
 /*%%DEFINES%%*/
 
+uniform mat4 modelMat;  // used to transform position from object to world coordinates.
 uniform mat4 viewMat;  // used to project position into view coordinates.
 uniform mat4 projMat;  // used to project view coordinates into clip coordinates.
 uniform vec4 projParams;  // x = HEIGHT / tan(FOVY / 2), y = Z_NEAR, z = Z_FAR
@@ -152,9 +153,12 @@ vec3 SRGBToLinear(const vec3 srgbColor)
 
 void main(void)
 {
-    // t is in view coordinates
+    // transform position from object to world coordinates
     float alpha = position.w;
-    vec4 t = viewMat * vec4(position.xyz, 1.0f);
+    vec4 worldPos = modelMat * vec4(position.xyz, 1.0f);
+
+    // t is in view coordinates
+    vec4 t = viewMat * worldPos;
 
     float X0 = viewport.x;
     float Y0 = viewport.y;
@@ -180,9 +184,9 @@ void main(void)
                   vec3(0.0f, jsy, 0.0f),
                   vec3(jtx, jty, jtz));
 
-    // combine the affine transforms of W (viewMat) and J (approx of viewportMat * projMat)
+    // combine the affine transforms of W (viewMat * modelMat) and J (approx of viewportMat * projMat)
     // using the fact that the new transformed covariance matrix V_Prime = JW * V * (JW)^T
-    mat3 W = mat3(viewMat);
+    mat3 W = mat3(viewMat * modelMat);
     mat3 V = mat3(cov3_col0, cov3_col1, cov3_col2);
     mat3 JW = J * W;
     mat3 V_prime = JW * V * transpose(JW);
@@ -202,8 +206,8 @@ void main(void)
     geom_p.x = 0.5f * (WIDTH + (geom_p.x * WIDTH) + (2.0f * X0));
     geom_p.y = 0.5f * (HEIGHT + (geom_p.y * HEIGHT) + (2.0f * Y0));
 
-    // compute radiance from sh
-    vec3 v = normalize(position.xyz - eye);
+    // compute radiance from sh (use world-space position)
+    vec3 v = normalize(worldPos.xyz - eye);
     geom_color = vec4(ComputeRadianceFromSH(v), alpha);
 
 #ifdef FRAMEBUFFER_SRGB

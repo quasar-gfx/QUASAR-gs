@@ -47,6 +47,7 @@ RenderStats GSRenderer::drawSplats(std::shared_ptr<GaussianCloud> gaussianCloud,
 
     glm::vec4 viewport;
     glm::mat4 projMat, cameraMat;
+    glm::mat4 modelMat = getModelMatrix();
     if (camera.isVR()) {
         pipeline.rasterState.scissorTestEnabled = true;
         pipeline.apply();
@@ -61,8 +62,8 @@ RenderStats GSRenderer::drawSplats(std::shared_ptr<GaussianCloud> gaussianCloud,
         frameRT.setViewport({ 0, 0, width / 2, height });
         frameRT.setScissor({ 0, 0, width / 2, height });
         viewport = glm::vec4(0.0f, 0.0f, width / 2, height);
-        splatRenderer->Sort(cameraMat, projMat, viewport, nearFar);
-        splatRenderer->Render(cameraMat, projMat, viewport, nearFar);
+        splatRenderer->Sort(cameraMat, projMat, modelMat, viewport, nearFar);
+        splatRenderer->Render(cameraMat, projMat, modelMat, viewport, nearFar);
 
         // Right eye
         cameraMat = vrCamera->right.getViewMatrixInverse();
@@ -71,8 +72,8 @@ RenderStats GSRenderer::drawSplats(std::shared_ptr<GaussianCloud> gaussianCloud,
 
         frameRT.setViewport({ width / 2, 0, width / 2, height });
         frameRT.setScissor({ width / 2, 0, width / 2, height });
-        splatRenderer->Sort(cameraMat, projMat, viewport, nearFar);
-        splatRenderer->Render(cameraMat, projMat, viewport, nearFar);
+        splatRenderer->Sort(cameraMat, projMat, modelMat, viewport, nearFar);
+        splatRenderer->Render(cameraMat, projMat, modelMat, viewport, nearFar);
 
         frameRT.setViewport({ 0, 0, width, height });
         frameRT.setScissor({ 0, 0, width, height });
@@ -92,8 +93,8 @@ RenderStats GSRenderer::drawSplats(std::shared_ptr<GaussianCloud> gaussianCloud,
         viewport = glm::vec4(0.0f, 0.0f, width, height);
         glm::vec2 nearFar(perspectiveCamera->getNear(), perspectiveCamera->getFar());
 
-        splatRenderer->Sort(cameraMat, projMat, viewport, nearFar);
-        splatRenderer->Render(cameraMat, projMat, viewport, nearFar);
+        splatRenderer->Sort(cameraMat, projMat, modelMat, viewport, nearFar);
+        splatRenderer->Render(cameraMat, projMat, modelMat, viewport, nearFar);
 
         stats.trianglesDrawn = static_cast<uint>(gaussianCloud->GetNumGaussians());
         stats.drawCalls = 1;

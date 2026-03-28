@@ -141,14 +141,16 @@ bool SplatRenderer::Init(std::shared_ptr<GaussianCloud> gaussianCloud,
 }
 
 void SplatRenderer::Sort(const glm::mat4& cameraMat, const glm::mat4& projMat,
-                         const glm::vec4& viewport, const glm::vec2& nearFar)
+                         const glm::mat4& modelMat, const glm::vec4& viewport,
+                         const glm::vec2& nearFar)
 {
     ZoneScoped;
 
     GL_ERROR_CHECK("SplatRenderer::Sort() begin");
 
     const size_t numPoints = posVec.size();
-    glm::mat4 modelViewMat = glm::inverse(cameraMat);
+    glm::mat4 viewMat = glm::inverse(cameraMat);
+    glm::mat4 modelViewMat = viewMat * modelMat;
 
     bool useMultiRadixSort = !useRgcSortOverride;
 
@@ -303,7 +305,8 @@ void SplatRenderer::Sort(const glm::mat4& cameraMat, const glm::mat4& projMat,
 
 
 void SplatRenderer::Render(const glm::mat4& cameraMat, const glm::mat4& projMat,
-                           const glm::vec4& viewport, const glm::vec2& nearFar)
+                           const glm::mat4& modelMat, const glm::vec4& viewport,
+                           const glm::vec2& nearFar)
 {
     ZoneScoped;
 
@@ -318,6 +321,7 @@ void SplatRenderer::Render(const glm::mat4& cameraMat, const glm::mat4& projMat,
         glm::vec3 eye = glm::vec3(cameraMat[3]);
 
         splatProg->Bind();
+        splatProg->SetUniform("modelMat", modelMat);
         splatProg->SetUniform("viewMat", viewMat);
         splatProg->SetUniform("projMat", projMat);
         splatProg->SetUniform("viewport", viewport);
